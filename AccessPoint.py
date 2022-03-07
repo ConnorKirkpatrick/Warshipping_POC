@@ -24,3 +24,5 @@ class AccessPoint:
 		
 	def toString(self):
 		return(self.MAC+", "+self.channel+", "+", "+self.Security+", "+ self.Power +", "+self.SSID)
+		
+
