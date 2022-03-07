@@ -1,6 +1,7 @@
 import socket
 import os
 import subprocess
+import tqdm
 
 
 def bToString(arg):
@@ -39,6 +40,7 @@ received = client_socket.recv(BUFFER_SIZE).decode()
 filename, filesize = received.split(SEPARATOR)
 filename = os.path.basename(filename)
 filesize = int(filesize)
+progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
 with open(filename, "wb") as f:
     while True:
         # read 1024 bytes from the socket (receive)
@@ -49,6 +51,7 @@ with open(filename, "wb") as f:
             break
         # write to the file the bytes we just received
         f.write(bytes_read)
+        progress.update(len(bytes_read))
     print("File received")
     pass
 
