@@ -3,7 +3,7 @@ import os
 import subprocess
 
 # TODO: possibly combine retied captures to add missing keys from other incomplete sets
-
+# TODO: add a persistent file to store the AP names + MAC and the cracked key for every file sent over
 global fileName
 fileName = ""
 
